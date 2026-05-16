@@ -178,4 +178,5 @@ This project combines IoT, automation, and AI-assisted monitoring to create an i
 ## 📄 License
 
 This project is developed for academic and research purposes.
-
+## 🔗 Wokwi Simulation
+https://wokwi.com/projects/418266173804483585
