@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AquaGuard — Ultimate AI Irrigation Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Fraunces:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --leaf: #2D5A27;
+  --leaf-light: #4A8C4A;
+  --leaf-pale: #E8F5E9;
+  --water: #0D47A1;
+  --water-light: #1976D2;
+  --water-pale: #E3F2FD;
+  --soil: #3E2723;
+  --soil-light: #5D4037;
+  --sand: #F5F5DC;
+  --bg: #F8FAF8;
+  --card: rgba(255, 255, 255, 0.85);
+  --border: rgba(0, 0, 0, 0.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  --radius: 16px;
+  
+  --lvl1: #4CAF50;
+  --lvl2: #FFEB3B;
+  --lvl3: #FF9800;
+  --lvl4: #F44336;
+}
+
+/* --- CHARTS GRID --- */
+.charts-grid {
+  display: grid; 
+  grid-template-columns: 1fr 1fr 1fr; 
+  gap: 1rem; 
+  margin-top: 1.5rem; 
+  background: rgba(0,0,0,0.02); 
+  padding: 1rem; 
+  border-radius: 12px;
+}
+@media (max-width: 850px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--soil);
+  line-height: 1.6;
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(45, 90, 39, 0.03) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(13, 71, 161, 0.03) 0%, transparent 40%);
+}
+
+/* --- HEADER --- */
+header {
+  padding: 1.5rem 3rem;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky; top: 0; z-index: 1000;
+}
+.brand { display: flex; align-items: center; gap: 1rem; }
+.logo {
+  width: 44px; height: 44px;
+  background: var(--leaf);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 4px 12px rgba(45, 90, 39, 0.2);
+}
+.logo svg { width: 24px; height: 24px; fill: #fff; }
+.brand-text h1 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; color: var(--soil); }
+.brand-text p { font-size: 12px; color: var(--soil-light); font-weight: 500; letter-spacing: 0.5px; }
+
+.sys-badge {
+  padding: 6px 16px;
+  border-radius: 99px;
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; gap: 8px;
+  background: var(--leaf-pale);
+  color: var(--leaf);
+  border: 1px solid rgba(45, 90, 39, 0.1);
+}
+.pulse-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--leaf); animation: pulse 2s infinite; }
+@keyframes pulse { 0% { transform: scale(0.9); opacity: 0.7; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(0.9); opacity: 0.7; } }
+
+/* --- MAIN LAYOUT --- */
+.container {
+  max-width: 1440px;
+  margin: 1.5rem auto;
+  padding: 0 1.5rem;
+  display: grid;
+  grid-template-columns: 320px 1fr 300px;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+  .container {
+    grid-template-columns: 320px 1fr;
+  }
+  .right-col {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .container {
+    grid-template-columns: 1fr;
+  }
+  .right-col {
+    grid-column: span 1;
+    grid-template-columns: 1fr;
+  }
+  header {
+    padding: 1rem;
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(8px);
+}
+.card-title {
+  font-family: 'Fraunces', serif;
+  font-size: 18px; font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: flex; align-items: center; gap: 8px;
+}
+
+/* --- CONTROLS --- */
+.controls-grid { display: flex; flex-direction: column; gap: 1rem; }
+.btn {
+  padding: 12px; border-radius: 12px; border: none;
+  font-family: inherit; font-weight: 600; font-size: 14px;
+  cursor: pointer; transition: all 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-primary { background: var(--leaf); color: #fff; }
+.btn-primary:hover { background: var(--leaf-light); transform: translateY(-1px); }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--soil-light); }
+.btn-outline:hover { background: #f0f0f0; }
+
+.select-box {
+  width: 100%; padding: 10px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 500;
+}
+
+/* --- HARDWARE PANEL --- */
+.hardware-view {
+  display: flex; flex-direction: column; gap: 1.5rem;
+}
+.esp32-node {
+  background: #222; border-radius: 12px; padding: 1.5rem;
+  position: relative; overflow: hidden;
+}
+.esp32-node::before {
+  content: ''; position: absolute; top: -10px; right: -10px;
+  width: 60px; height: 60px; background: rgba(255,255,255,0.05);
+  border-radius: 50%;
+}
+.node-label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+.node-title { color: #fff; font-size: 16px; font-weight: 600; margin-bottom: 1rem; }
+
+.led-panel { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
+.led {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: #333; transition: all 0.3s;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+}
+.led.active.green { background: var(--lvl1); box-shadow: 0 0 12px var(--lvl1); }
+.led.active.yellow { background: var(--lvl2); box-shadow: 0 0 12px var(--lvl2); }
+.led.active.orange { background: var(--lvl3); box-shadow: 0 0 12px var(--lvl3); }
+.led.active.red { background: var(--lvl4); box-shadow: 0 0 12px var(--lvl4); animation: blink 0.5s infinite; }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.valve-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 1rem; }
+.valve-card {
+  background: rgba(255,255,255,0.1); padding: 12px; border-radius: 8px;
+  text-align: center; border: 1px solid rgba(255,255,255,0.05);
+}
+.valve-name { font-size: 11px; color: #aaa; margin-bottom: 4px; }
+.valve-status { font-size: 14px; font-weight: 700; color: #fff; }
+.valve-status.open { color: var(--lvl1); }
+.valve-status.closed { color: var(--lvl4); }
+
+/* --- PARAMETER DISPLAY --- */
+.turb-display {
+  display: flex; 
+  justify-content: space-around; 
+  align-items: flex-end; 
+  padding: 2rem 0; 
+  text-align: center;
+}
+@media (max-width: 600px) {
+  .turb-display {
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+  }
+}
+
+.turb-main {
+  text-align: center;
+  padding: 0;
+}
+.turb-val {
+  font-family: 'Fraunces', serif;
+  font-size: 64px; font-weight: 700;
+  line-height: 1; color: var(--soil);
+}
+.turb-unit { font-size: 20px; color: var(--soil-light); font-weight: 400; margin-left: 4px; }
+.turb-label {
+  font-size: 14px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--soil-light); margin-top: 0.5rem;
+}
+
+.level-badge {
+  display: inline-block; padding: 6px 16px; border-radius: 99px;
+  font-size: 14px; font-weight: 700; margin-top: 1.5rem;
+  transition: all 0.4s;
+}
+
+/* --- VISUALIZER --- */
+.visualizer {
+  height: 280px; 
+  border-radius: 16px;
+  position: relative; overflow: hidden;
+  margin: 1.5rem 0;
+  border: 2px solid var(--border);
+  box-shadow: inset 0 10px 30px rgba(0,0,0,0.05);
+  background: linear-gradient(to bottom, #E3F2FD 0%, #E3F2FD 40%, #8D6E63 40%, #5D4037 100%);
+  --water-color: rgba(33, 150, 243, 0.8);
+}
+
+.viz-sun {
+  position: absolute; top: 15px; left: 15px; width: 40px; height: 40px;
+  background: #FFCA28; border-radius: 50%; box-shadow: 0 0 20px #FFCA28;
+}
+.viz-cloud {
+  position: absolute; top: 20px; right: 40px; width: 60px; height: 20px;
+  background: rgba(255,255,255,0.8); border-radius: 20px;
+}
+.viz-cloud::before {
+  content: ''; position: absolute; top: -10px; left: 10px; width: 30px; height: 30px;
+  background: rgba(255,255,255,0.8); border-radius: 50%;
+}
+
+.pipe {
+  position: absolute; left: 0; top: 130px; width: 100%; height: 36px;
+  background: linear-gradient(to bottom, #CFD8DC, #9E9E9E, #CFD8DC); 
+  border-top: 2px solid #78909C; border-bottom: 2px solid #78909C;
+  z-index: 10; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.water-flow-source {
+  position: absolute; left: 0; top: 2px; height: calc(100% - 4px); width: 0;
+  background: var(--water-color); transition: width 0.8s ease, background 0.8s ease;
+  z-index: 11;
+}
+.water-flow-crops {
+  position: absolute; left: calc(100% - 106px); top: 2px; height: calc(100% - 4px); width: 0;
+  background: var(--water-color); transition: width 0.8s ease, background 0.8s ease;
+  z-index: 11; border-radius: 0 16px 16px 0;
+}
+.water-flow-source::after, .water-flow-crops::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
+  background-size: 200% 100%; animation: flow 1.2s linear infinite;
+}
+@keyframes flow { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+.diversion-pipe {
+  position: absolute; right: 80px; top: 166px; width: 26px; height: 114px;
+  background: linear-gradient(to right, #CFD8DC, #9E9E9E, #CFD8DC);
+  border-left: 2px solid #78909C; border-right: 2px solid #78909C;
+  z-index: 9;
+}
+.div-flow {
+  position: absolute; left: 2px; top: 0; width: calc(100% - 4px); height: 0;
+  background: var(--water-color); transition: height 0.8s ease, background 0.8s ease; z-index: 10;
+  border-radius: 0 0 12px 12px;
+}
+
+.diversion-tank {
+  position: absolute; right: 40px; bottom: 10px; width: 106px; height: 60px;
+  background: rgba(255,255,255,0.1); border: 3px solid #BCAAA4;
+  border-radius: 4px 4px 12px 12px; z-index: 8; overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
+}
+.tank-water {
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 0;
+  background: var(--water-color); transition: height 2s ease, background 0.8s ease;
+}
+
+.crop-area {
+  position: absolute; bottom: 40px; left: 20px; display: flex; gap: 15px; z-index: 12;
+}
+.crop-group {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+}
+.crop { 
+  font-size: 32px; transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+  filter: grayscale(0.8) brightness(0.8); transform: scale(0.7) translateY(10px); 
+  text-shadow: 0 5px 10px rgba(0,0,0,0.2); z-index: 2;
+}
+.soil-mound {
+  width: 40px; height: 15px; background: #4E342E; border-radius: 50% 50% 0 0;
+  position: absolute; bottom: -5px; z-index: 1; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+}
+
+.active .crop { filter: grayscale(0) brightness(1.1); transform: scale(1) translateY(0); }
+.danger .crop { filter: sepia(1) hue-rotate(15deg) brightness(0.7); transform: scale(0.6) translateY(15px) rotate(15deg); }
+.active.danger .crop { filter: sepia(0.6) hue-rotate(15deg); transform: scale(0.9) translateY(5px); }
+
+.droplet {
+  position: absolute; right: -5px; top: 15px; width: 10px; height: 10px;
+  background: var(--water-color); border-radius: 50% 0 50% 50%; transform: rotate(-45deg);
+  opacity: 0; z-index: 12; transition: background 0.8s ease;
+}
+.active .droplet { animation: drip 1s infinite; }
+@keyframes drip { 0% { top: 15px; opacity: 1; transform: rotate(-45deg) scale(1); } 100% { top: 50px; opacity: 0; transform: rotate(-45deg) scale(0.5); } }
+
+/* --- AI PANEL --- */
+.ai-card {
+  background: linear-gradient(135deg, #2D5A27, #1B3F1B);
+  color: #fff;
+}
+.ai-header { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
+.ai-icon {
+  width: 32px; height: 32px; background: rgba(255,255,255,0.1);
+  border-radius: 8px; display: flex; align-items: center; justify-content: center;
+}
+.ai-text { font-size: 14px; font-weight: 300; opacity: 0.9; min-height: 80px; }
+.ai-recommendation {
+  margin-top: 1rem; padding: 12px; background: rgba(255,255,255,0.1);
+  border-radius: 8px; font-size: 13px; font-weight: 600; border-left: 3px solid var(--lvl1);
+}
+
+/* --- CHARTS --- */
+.chart-container { height: 180px; margin-top: 1rem; }
+
+/* --- LOG --- */
+.log-area {
+  font-family: 'Instrument Sans', sans-serif; font-size: 12px;
+  height: 200px; overflow-y: auto; display: flex; flex-direction: column-reverse;
+}
+.log-entry {
+  padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,0.03);
+  display: grid; grid-template-columns: 60px 1fr;
+}
+.log-ts { color: var(--soil-light); opacity: 0.6; }
+.log-msg { font-weight: 500; }
+
+/* --- FOOTER --- */
+footer {
+  text-align: center; padding: 3rem; color: var(--soil-light); font-size: 13px;
+}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+    </div>
+    <div class="brand-text">
+      <h1>AquaGuard</h1>
+      <p>AI-ASSISTED IRRIGATION QUALITY MONITOR</p>
+    </div>
+  </div>
+  <div class="sys-badge">
+    <div class="pulse-dot"></div>
+    <span id="sys-status">System Online</span>
+  </div>
+</header>
+
+<div class="container">
+  
+  <!-- LEFT PANEL: CONTROLS & HARDWARE -->
+  <div class="left-col">
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-title">Simulation Control</div>
+      <div class="controls-grid">
+        <button class="btn btn-primary" id="btn-start" onclick="toggleSim()">
+          <span id="btn-icon">▶</span> <span id="btn-text">Start Simulation</span>
+        </button>
+        <button class="btn btn-outline" onclick="resetSim()">↺ Reset System</button>
+        
+        <div style="margin-top: 1rem;">
+          <label class="node-label">Select Scenario</label>
+          <select id="scenario-sel" class="select-box" onchange="changeScenario()">
+            <option value="normal">Normal Operation</option>
+            <option value="runoff">Heavy Rain Runoff</option>
+            <option value="effluent">Industrial Effluent</option>
+            <option value="stagnant">Stagnant Water</option>
+            <option value="manual">Manual Adjustment</option>
+          </select>
+        </div>
+
+        <div id="manual-controls" style="display: none; margin-top: 1rem;">
+          <div style="margin-bottom: 1rem;">
+            <label class="node-label">Manual Turbidity: <span id="turb-val-label">10</span> NTU</label>
+            <input type="range" id="turb-slider" min="0" max="250" value="10" step="1" style="width: 100%; margin-top: 4px;" oninput="manualUpdate()">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label class="node-label">Manual pH: <span id="ph-val-label">7.0</span> <span style="font-size: 9px; opacity: 0.7;">(7 is Neutral)</span></label>
+            <input type="range" id="ph-slider" min="0" max="14" value="7.0" step="0.1" 
+                   style="width: 100%; margin-top: 4px; height: 6px; border-radius: 3px; appearance: none; background: linear-gradient(to right, #F44336 0%, #FFEB3B 30%, #4CAF50 50%, #FFEB3B 70%, #F44336 100%); outline: none;" 
+                   oninput="manualUpdate()">
+          </div>
+          <div>
+            <label class="node-label">Manual TDS: <span id="tds-val-label">300</span> mg/L</label>
+            <input type="range" id="tds-slider" min="0" max="1500" value="300" step="10" style="width: 100%; margin-top: 4px;" oninput="manualUpdate()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Hardware Status (ESP32)</div>
+      <div class="hardware-view">
+        <div class="esp32-node">
+          <div class="node-label">Central Controller v2.1</div>
+          <div class="node-title">IOT NODE-01</div>
+          <div class="led-panel">
+            <div class="led" id="led-green"></div>
+            <div class="led" id="led-yellow"></div>
+            <div class="led" id="led-orange"></div>
+            <div class="led" id="led-red"></div>
+          </div>
+          <div class="valve-grid">
+            <div class="valve-card">
+              <div class="valve-name">Main Valve</div>
+              <div class="valve-status" id="valve-main">OFF</div>
+            </div>
+            <div class="valve-card">
+              <div class="valve-name">Divert Valve</div>
+              <div class="valve-status" id="valve-div">OFF</div>
+            </div>
+          </div>
+        </div>
+        <div style="text-align: center;">
+          <div class="node-label">Buzzer Alert</div>
+          <div id="buzzer-icon" style="font-size: 24px; opacity: 0.2; margin-top: 4px;">🔕</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER PANEL: MONITORING -->
+  <div class="center-col">
+    <div class="card" style="min-height: 600px;">
+      <div class="card-title" style="flex-direction: column; align-items: center; gap: 4px;">
+        <div>Live Parameter Monitoring</div>
+        <div class="level-badge" id="level-badge" style="background: #eee; color: #888; margin-top: 0; transform: scale(0.9);">INITIALIZING</div>
+      </div>
+      
+      <div class="turb-display">
+        <div class="turb-main">
+          <div class="turb-val" id="disp-ph" style="font-size: 48px;">7.0</div>
+          <div class="turb-label" style="margin-top: 0;">pH Level</div>
+        </div>
+        <div class="turb-main">
+          <div class="turb-val" id="disp-turb">0</div>
+          <span class="turb-unit">NTU</span>
+          <div class="turb-label" style="margin-top: 0;">Current Turbidity</div>
+        </div>
+        <div class="turb-main">
+          <div class="turb-val" id="disp-tds" style="font-size: 48px;">300</div>
+          <span class="turb-unit" style="font-size: 16px;">mg/L</span>
+          <div class="turb-label" style="margin-top: 0;">TDS</div>
+        </div>
+      </div>
+
+      <div class="visualizer" id="viz-container">
+        <div class="viz-sun"></div>
+        <div class="viz-cloud"></div>
+        <div class="viz-cloud" style="top: 40px; left: 80px; transform: scale(0.7); opacity: 0.6;"></div>
+
+        <!-- Main Pipe -->
+        <div class="pipe">
+          <div class="water-flow-source" id="flow-source"></div>
+          <div class="water-flow-crops" id="flow-crops">
+            <div class="droplet"></div>
+          </div>
+        </div>
+        <!-- Diversion Pipe -->
+        <div class="diversion-pipe">
+          <div class="div-flow" id="div-flow"></div>
+        </div>
+        <!-- Diversion Tank -->
+        <div class="diversion-tank">
+          <div class="tank-water" id="tank-water"></div>
+        </div>
+        <div style="position: absolute; bottom: 75px; right: 40px; font-size: 11px; font-weight: 800; color: #FFF; text-shadow: 0 1px 3px rgba(0,0,0,0.8); z-index: 10;">
+          DIVERSION
+        </div>
+        
+        <div class="crop-area">
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+          <div class="crop-group"><div class="crop">🌱</div><div class="soil-mound"></div></div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-item" style="height: 180px;">
+          <div class="node-label" style="text-align: center; margin-bottom: 5px; color: var(--soil);">pH Level Trend</div>
+          <canvas id="ph-chart"></canvas>
+        </div>
+        <div class="chart-item" style="height: 180px;">
+          <div class="node-label" style="text-align: center; margin-bottom: 5px; color: var(--soil);">Turbidity (NTU) Trend</div>
+          <canvas id="turb-chart"></canvas>
+        </div>
+        <div class="chart-item" style="height: 180px;">
+          <div class="node-label" style="text-align: center; margin-bottom: 5px; color: var(--soil);">TDS (mg/L) Trend</div>
+          <canvas id="tds-chart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL: AI & LOGS -->
+  <div class="right-col">
+    <div class="card ai-card" style="margin-bottom: 1.5rem;">
+      <div class="ai-header">
+        <div class="ai-icon">✨</div>
+        <div style="font-weight: 600;">AquaGuard AI</div>
+      </div>
+      <div class="ai-text" id="ai-status">
+        Ready to analyze water quality. Start the simulation to begin real-time classification.
+      </div>
+      <div class="ai-recommendation" id="ai-rec">
+        Awaiting input...
+      </div>
+    </div>
+
+    <div class="card" style="flex: 1;">
+      <div class="card-title">Activity Log</div>
+      <div class="log-area" id="log-list">
+        <!-- Logs injected here -->
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <p>&copy; 2026 AquaGuard Irrigation System · Design Thinking Project</p>
+  <p style="opacity: 0.6; margin-top: 4px;">P. Rimith Reddy · T. Sai Suchir · A. Revanth Kumar · P. Esha · Siri Chandana · VNR VJIET</p>
+</footer>
+
+<script>
+// --- STATE ---
+let active = false;
+let tick = 0;
+let turbValue = 0;
+let phValue = 7.0;
+let tdsValue = 300;
+let history = [];
+let scenario = 'normal';
+let interval = null;
+
+const levels = [
+  { min: 0,   max: 10,  name: 'LEVEL 1: CLEAR',    color: '#4CAF50', led: 'green',  main: 'OPEN',   div: 'CLOSED', rec: 'Ideal for all crops including sensitive high-value varieties.' },
+  { min: 10,  max: 50,  name: 'LEVEL 2: LOW TURB', color: '#FFEB3B', led: 'yellow', main: 'OPEN',   div: 'CLOSED', rec: 'Suitable for moderately sensitive crops. Monitor closely.' },
+  { min: 50,  max: 100, name: 'LEVEL 3: MODERATE', color: '#FF9800', led: 'orange', main: 'CLOSED', div: 'OPEN',   rec: 'Not for direct irrigation. Diverted to land preparation area.' },
+  { min: 100, max: 999, name: 'LEVEL 4: CRITICAL', color: '#F44336', led: 'red',    main: 'CLOSED', div: 'CLOSED', rec: 'Toxic level detected! Flow blocked. Emergency alert active.' }
+];
+
+// --- CHARTS ---
+function createChart(id, label, color, min, max, unit) {
+  const ctx = document.getElementById(id).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        label: label,
+        data: [],
+        borderColor: color,
+        backgroundColor: color + '1A',
+        borderWidth: 2,
+        pointRadius: 2,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { 
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        y: { 
+          min: min, 
+          max: max, 
+          ticks: { font: { size: 9 }, color: '#5D4037' },
+          title: { display: true, text: unit, font: { size: 9, weight: 'bold' } },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        },
+        x: { 
+          ticks: { font: { size: 8 }, color: '#5D4037', maxRotation: 0 },
+          title: { display: true, text: 'Time (Ticks)', font: { size: 9, weight: 'bold' } },
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+const phChart = createChart('ph-chart', 'pH', '#1976D2', 0, 14, 'pH');
+const turbChart = createChart('turb-chart', 'Turbidity', '#2D5A27', 0, 250, 'NTU');
+const tdsChart = createChart('tds-chart', 'TDS', '#E64A19', 0, 1500, 'mg/L');
+
+// --- CORE FUNCTIONS ---
+function toggleSim() {
+  active = !active;
+  document.getElementById('btn-text').textContent = active ? 'Stop Simulation' : 'Start Simulation';
+  document.getElementById('btn-icon').textContent = active ? '⏹' : '▶';
+  document.getElementById('btn-start').className = active ? 'btn btn-outline' : 'btn btn-primary';
+  
+  if (active) {
+    addLog("Simulation Engine Started", "success");
+    interval = setInterval(update, 1000);
+  } else {
+    addLog("Simulation Engine Stopped", "warning");
+    clearInterval(interval);
+  }
+}
+
+function resetSim() {
+  active = false;
+  clearInterval(interval);
+  tick = 0;
+  turbValue = 0;
+  phValue = 7.0;
+  tdsValue = 300;
+  history = [];
+  
+  [phChart, turbChart, tdsChart].forEach(c => {
+    c.data.labels = [];
+    c.data.datasets[0].data = [];
+    c.update();
+  });
+  
+  document.getElementById('btn-text').textContent = 'Start Simulation';
+  document.getElementById('btn-icon').textContent = '▶';
+  document.getElementById('btn-start').className = 'btn btn-primary';
+  document.getElementById('disp-turb').textContent = '0';
+  document.getElementById('disp-ph').textContent = '7.0';
+  document.getElementById('disp-tds').textContent = '300';
+  document.getElementById('level-badge').textContent = 'INITIALIZING';
+  document.getElementById('level-badge').style.background = '#eee';
+  document.getElementById('level-badge').style.color = '#888';
+  
+  // Reset hardware
+  resetLEDs();
+  updateValves('OFF', 'OFF');
+  document.getElementById('buzzer-icon').textContent = '🔕';
+  document.getElementById('buzzer-icon').style.opacity = '0.2';
+  document.getElementById('flow-source').style.width = '0';
+  document.getElementById('flow-crops').style.width = '0';
+  document.getElementById('div-flow').style.height = '0';
+  document.getElementById('tank-water').style.height = '0';
+  document.querySelectorAll('.crop').forEach(c => c.parentElement.classList.remove('active'));
+  
+  // Reset actual sliders
+  document.getElementById('turb-slider').value = 10;
+  document.getElementById('ph-slider').value = 7.0;
+  document.getElementById('tds-slider').value = 300;
+  document.getElementById('turb-val-label').textContent = '10';
+  document.getElementById('ph-val-label').textContent = '7.0';
+  document.getElementById('tds-val-label').textContent = '300';
+  
+  document.getElementById('log-list').innerHTML = '';
+  addLog("System Reset Complete", "info");
+}
+
+function update() {
+  tick++;
+  
+  // Calculate targets based on scenario
+  let targetTurb = 5, targetPh = 7.0, targetTds = 300;
+  
+  if (scenario === 'runoff') { targetTurb = 45 + Math.random() * 20; targetPh = 6.2 + Math.random() * 0.5; targetTds = 450 + Math.random() * 100; }
+  else if (scenario === 'effluent') { targetTurb = 110 + Math.random() * 40; targetPh = 4.5 + Math.random() * 1.5; targetTds = 1200 + Math.random() * 300; }
+  else if (scenario === 'stagnant') { targetTurb = 65 + Math.random() * 15; targetPh = 7.8 + Math.random() * 0.5; targetTds = 350 + Math.random() * 50; }
+  else if (scenario === 'manual') { 
+    targetTurb = parseFloat(document.getElementById('turb-slider').value);
+    targetPh = parseFloat(document.getElementById('ph-slider').value);
+    targetTds = parseFloat(document.getElementById('tds-slider').value);
+  }
+  else { targetTurb = 4 + Math.random() * 6; targetPh = 7.0 + Math.random() * 0.4; targetTds = 280 + Math.random() * 40; }
+
+  // Transition (Manual is instant, others are smooth)
+  const alpha = (scenario === 'manual') ? 1.0 : 0.3;
+  turbValue = (turbValue * (1 - alpha)) + (targetTurb * alpha);
+  phValue = (phValue * (1 - alpha)) + (targetPh * alpha);
+  tdsValue = (tdsValue * (1 - alpha)) + (targetTds * alpha);
+  
+  // Find Level based on worst-case parameter
+  let levelIdx = 0;
+  let reason = "All parameters within optimal range.";
+
+  // TDS Checks
+  if (tdsValue > 450) { levelIdx = 1; reason = "High TDS (Total Dissolved Solids) detected."; }
+  if (tdsValue > 800) { levelIdx = 2; reason = "Hazardous TDS levels for crops."; }
+  if (tdsValue > 1200) { levelIdx = 3; reason = "Toxic TDS concentration! Blocking flow."; }
+
+  // pH Checks (Ideal 6.5 - 8.5)
+  if (phValue < 6.0 || phValue > 9.0) { 
+    if (1 > levelIdx) { levelIdx = 1; reason = "Sub-optimal pH level detected."; }
+  }
+  if (phValue < 5.0 || phValue > 10.0) { 
+    if (2 > levelIdx) { levelIdx = 2; reason = "Unsafe pH range detected."; }
+  }
+  if (phValue < 4.0 || phValue > 11.0) { 
+    if (3 > levelIdx) { levelIdx = 3; reason = "Extreme pH! Blocking to prevent soil damage."; }
+  }
+
+  // Turbidity (Primary override)
+  if (turbValue >= 10) { 
+    if (1 > levelIdx) { levelIdx = 1; reason = "Low turbidity (suspended solids) detected."; }
+  }
+  if (turbValue >= 50) { 
+    if (2 > levelIdx) { levelIdx = 2; reason = "Moderate turbidity; diverting to sediment tank."; }
+  }
+  if (turbValue >= 100) { 
+    if (3 > levelIdx) { levelIdx = 3; reason = "Critical turbidity levels detected!"; }
+  }
+
+  const lvl = levels[levelIdx];
+  
+  // Update UI
+  document.getElementById('disp-turb').textContent = Math.round(turbValue);
+  document.getElementById('disp-ph').textContent = phValue.toFixed(1);
+  document.getElementById('disp-tds').textContent = Math.round(tdsValue);
+  const badge = document.getElementById('level-badge');
+  badge.textContent = lvl.name;
+  badge.style.background = lvl.color;
+  badge.style.color = lvl.led === 'yellow' ? '#333' : '#fff';
+  
+  // Update Hardware
+  resetLEDs();
+  document.getElementById('led-' + lvl.led).classList.add('active');
+  updateValves(lvl.main, lvl.div);
+  
+  // Buzzer
+  const buzzer = document.getElementById('buzzer-icon');
+  if (lvl.led === 'red') {
+    buzzer.textContent = '🔊';
+    buzzer.style.opacity = '1';
+    if (tick % 2 === 0) addLog("CRITICAL: Solenoid Valves Locked", "danger");
+  } else {
+    buzzer.textContent = '🔕';
+    buzzer.style.opacity = '0.2';
+  }
+
+  // Update Visualizer
+  const flowSource = document.getElementById('flow-source');
+  const flowCrops = document.getElementById('flow-crops');
+  const divFlow = document.getElementById('div-flow');
+  const tankWater = document.getElementById('tank-water');
+  const crops = document.querySelector('.crop-area');
+  
+  // Set water color
+  let wColor = 'rgba(33, 150, 243, 0.8)';
+  if(lvl.led === 'yellow') wColor = 'rgba(0, 150, 136, 0.85)';
+  if(lvl.led === 'orange') wColor = 'rgba(121, 85, 72, 0.8)';
+  if(lvl.led === 'red') wColor = 'rgba(78, 52, 46, 0.95)';
+  document.documentElement.style.setProperty('--water-color', wColor);
+
+  // Flow Path Logic
+  if (lvl.main === 'OPEN' || lvl.div === 'OPEN') {
+    flowSource.style.width = 'calc(100% - 80px)'; // To the junction
+  } else {
+    flowSource.style.width = '0';
+  }
+
+  if (lvl.main === 'OPEN') {
+    flowCrops.style.width = '106px';
+    crops.className = 'crop-area active';
+    if(lvl.led === 'yellow') crops.className = 'crop-area active danger';
+  } else {
+    flowCrops.style.width = '0';
+    crops.className = 'crop-area';
+    if(lvl.led === 'red') crops.className = 'crop-area danger';
+  }
+
+  if (lvl.div === 'OPEN') {
+    divFlow.style.height = '100%';
+    tankWater.style.height = '70%';
+  } else {
+    divFlow.style.height = '0';
+    // Slowly drain tank over time
+    if(tankWater.style.height === '70%') {
+      setTimeout(() => { if(lvl.div !== 'OPEN') tankWater.style.height = '30%'; }, 2000);
+      setTimeout(() => { if(lvl.div !== 'OPEN') tankWater.style.height = '0'; }, 4000);
+    }
+  }
+
+  // Update AI
+  document.getElementById('ai-status').textContent = `${reason} (Turbidity: ${Math.round(turbValue)} NTU, pH: ${phValue.toFixed(1)}, TDS: ${Math.round(tdsValue)}). Classification: ${lvl.name}.`;
+  document.getElementById('ai-rec').textContent = lvl.rec;
+  document.getElementById('ai-rec').style.borderLeftColor = lvl.color;
+
+  // Charts
+  const chartsData = [
+    { chart: phChart, val: phValue },
+    { chart: turbChart, val: turbValue },
+    { chart: tdsChart, val: tdsValue }
+  ];
+
+  chartsData.forEach(item => {
+    item.chart.data.labels.push(tick);
+    item.chart.data.datasets[0].data.push(item.val);
+    if (item.chart.data.labels.length > 20) {
+      item.chart.data.labels.shift();
+      item.chart.data.datasets[0].data.shift();
+    }
+    if (item.chart === turbChart) item.chart.data.datasets[0].borderColor = lvl.color;
+    item.chart.update('none');
+  });
+
+  if (tick % 5 === 0) addLog(`Periodic Check: ${Math.round(turbValue)} NTU, pH ${phValue.toFixed(1)}, TDS ${Math.round(tdsValue)}. Status: ${lvl.name}`, "info");
+}
+
+function updateValves(main, div) {
+  const mV = document.getElementById('valve-main');
+  const dV = document.getElementById('valve-div');
+  mV.textContent = main;
+  mV.className = 'valve-status ' + (main === 'OPEN' ? 'open' : 'closed');
+  dV.textContent = div;
+  dV.className = 'valve-status ' + (div === 'OPEN' ? 'open' : 'closed');
+}
+
+function resetLEDs() {
+  ['green', 'yellow', 'orange', 'red'].forEach(c => {
+    document.getElementById('led-' + c).className = 'led ' + c;
+  });
+}
+
+function changeScenario() {
+  scenario = document.getElementById('scenario-sel').value;
+  document.getElementById('manual-controls').style.display = scenario === 'manual' ? 'block' : 'none';
+  addLog(`Switched to ${scenario} scenario`, "info");
+}
+
+function manualUpdate() {
+  document.getElementById('turb-val-label').textContent = document.getElementById('turb-slider').value;
+  document.getElementById('ph-val-label').textContent = document.getElementById('ph-slider').value;
+  document.getElementById('tds-val-label').textContent = document.getElementById('tds-slider').value;
+  if (!active) toggleSim();
+}
+
+function addLog(msg, type) {
+  const logList = document.getElementById('log-list');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const now = new Date();
+  const ts = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0') + ":" + now.getSeconds().toString().padStart(2, '0');
+  
+  entry.innerHTML = `<span class="log-ts">${ts}</span><span class="log-msg">${msg}</span>`;
+  logList.appendChild(entry);
+}
+
+// Start with a log
+addLog("AquaGuard AI System Initialized", "success");
+addLog("Waiting for ESP32 handshake...", "info");
+
+</script>
+</body>
+</html>
